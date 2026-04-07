@@ -1,0 +1,6 @@
+streamlit
+groq
+python-dotenv
+openai-whisper
+torch
+static-ffmpeg
