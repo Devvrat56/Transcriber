@@ -61,26 +61,9 @@ with st.sidebar:
     llm_model = st.selectbox("LLM Model", ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"])
     
     st.markdown("---")
-    st.markdown("### Language Selection")
-    indian_languages = {
-        "Auto-Detect": None,
-        "Hindi": "hi",
-        "Kannada": "kn",
-        "Telugu": "te",
-        "Tamil": "ta",
-        "Malayalam": "ml",
-        "Marathi": "mr",
-        "Bengali": "bn",
-        "Gujarati": "gu",
-        "Punjabi": "pa"
-    }
-    selected_language_name = st.selectbox("Speech Language", list(indian_languages.keys()))
-    selected_language_code = indian_languages[selected_language_name]
-    
-    st.markdown("---")
     st.info("A fast, versatile transcriber for any language and professional field.")
 
-def transcribe_audio(audio_file, language_code=None):
+def transcribe_audio(audio_file):
     if not client:
         st.error("Please provide a Groq API Key in the sidebar or .env file.")
         return None
@@ -89,15 +72,10 @@ def transcribe_audio(audio_file, language_code=None):
         try:
             audio_file.seek(0)
             # Use transcription (preserves original language) rather than translation
-            # Added a prompt to help Whisper with Indian language nuances and context.
-            prompt = "This is a recording in an Indian language. Please capture the nuances and transcribe accurately without translation."
-            
             transcription = client.audio.transcriptions.create(
                 file=(audio_file.name, audio_file.read()),
                 model=whisper_model,
                 response_format="verbose_json",
-                language=language_code if language_code else None,
-                prompt=prompt
             )
             return transcription
         except Exception as e:
@@ -149,7 +127,7 @@ if uploaded_file:
     st.audio(uploaded_file, format='audio/wav')
     
     if st.button("Transcribe and Process"):
-        result = transcribe_audio(uploaded_file, language_code=selected_language_code)
+        result = transcribe_audio(uploaded_file)
         
         if result:
             raw_text = result.text
