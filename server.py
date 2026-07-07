@@ -110,7 +110,14 @@ async def transcribe_endpoint(file: UploadFile = File(...)):
         # Transcribe
         api_key = os.getenv("GROQ_API_KEY")
         logger.info("Starting transcription...")
-        transcript, segments = transcribe_audio(transcribe_path, api_key=api_key)
+        try:
+            transcript, segments = transcribe_audio(transcribe_path, api_key=api_key)
+        except Exception as e:
+            logger.warning(f"Transcription failed with default key. Retrying with fallback key. Error: {e}")
+            fallback_key = os.getenv("FALLBACK_GROQ_API_KEY")
+            if not fallback_key:
+                raise ValueError("No fallback API key configured in FALLBACK_GROQ_API_KEY env variable.") from e
+            transcript, segments = transcribe_audio(transcribe_path, api_key=fallback_key)
         logger.info("Transcription completed.")
         
         return {"transcript": transcript}
@@ -137,7 +144,17 @@ async def analyze_endpoint(req: AnalyzeRequest):
         
         # Initialize NLP pipeline
         nlp_pipeline = MedicalNLPPipeline(config={"groq_api_key": api_key})
-        nlp_report = nlp_pipeline.process_transcript(req.transcript)
+        try:
+            nlp_report = nlp_pipeline.process_transcript(req.transcript)
+            if not nlp_report or not nlp_report.get("corrected_transcript") or "warning" in nlp_report or "invalid_api_key" in str(nlp_report):
+                raise ValueError("NLP pipeline returned fallback or invalid key warning")
+        except Exception as e:
+            logger.warning(f"NLP pipeline failed with default key. Retrying with fallback key. Error: {e}")
+            fallback_key = os.getenv("FALLBACK_GROQ_API_KEY")
+            if not fallback_key:
+                raise ValueError("No fallback API key configured in FALLBACK_GROQ_API_KEY env variable.") from e
+            nlp_pipeline = MedicalNLPPipeline(config={"groq_api_key": fallback_key})
+            nlp_report = nlp_pipeline.process_transcript(req.transcript)
         
         # Extract fields
         corrected_transcript = nlp_report.get("corrected_transcript", req.transcript) or req.transcript
@@ -145,7 +162,6 @@ async def analyze_endpoint(req: AnalyzeRequest):
         
         # Generate Clinical SOAP Care Plan Summary
         logger.info("Generating clinical SOAP summary via LLM...")
-        llm_client = MedicalLLM(api_key=api_key)
         
         extracted_details = {
             "patient_details": nlp_report.get("patient_details", {}),
@@ -153,7 +169,18 @@ async def analyze_endpoint(req: AnalyzeRequest):
             "medicines": nlp_report.get("medicines", [])
         }
         
-        summary = llm_client.generate_doctor_summary(corrected_transcript, extracted_details)
+        try:
+            llm_client = MedicalLLM(api_key=api_key)
+            summary = llm_client.generate_doctor_summary(corrected_transcript, extracted_details)
+            if not summary or "Error generating summary" in summary or "Invalid API Key" in summary or "Failed to analyze" in summary or "invalid_api_key" in summary:
+                raise ValueError("LLM generation returned an error string: " + str(summary))
+        except Exception as e:
+            logger.warning(f"LLM summary generation failed. Retrying with fallback key. Error: {e}")
+            fallback_key = os.getenv("FALLBACK_GROQ_API_KEY")
+            if not fallback_key:
+                raise ValueError("No fallback API key configured in FALLBACK_GROQ_API_KEY env variable.") from e
+            llm_client = MedicalLLM(api_key=fallback_key)
+            summary = llm_client.generate_doctor_summary(corrected_transcript, extracted_details)
         
         # Create history record
         history_item = {
