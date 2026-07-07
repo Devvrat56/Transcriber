@@ -63,6 +63,12 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 **Note:** Installation may take 10-15 minutes due to PyTorch and CUDA dependencies.
 
+Optional local microphone recording support:
+```bash
+sudo apt-get install -y portaudio19-dev python3-dev
+.venv/bin/pip install -r requirements-live.txt
+```
+
 ### 4. Configure Environment
 Create a `.env` file in the project root:
 ```bash
@@ -296,10 +302,12 @@ Supported: Any language code (`en`, `hi`, `es`, `fr`, etc.)
 ```
 ModuleNotFoundError: No module named 'pyaudio'
 ```
-**Solution:** Install portaudio dev libraries
+`pyaudio` is optional and only needed for local live microphone recording. File upload and hosted deployments work without it.
+
+**Solution:** Install PortAudio dev libraries, then install the optional live-audio requirements:
 ```bash
-sudo apt-get install portaudio19-dev
-.venv/bin/pip install --force-reinstall pyaudio
+sudo apt-get install -y portaudio19-dev python3-dev
+.venv/bin/pip install -r requirements-live.txt
 ```
 
 ### Groq API Key Error

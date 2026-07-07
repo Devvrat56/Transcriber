@@ -1,7 +1,6 @@
 streamlit
 groq
 python-dotenv
-pyaudio
 numpy
 librosa
 soundfile
