@@ -1,17 +1,22 @@
 import os
 import streamlit as st
-from groq import Groq
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-# Initialize Groq client
+# Attempt optional Groq import for cloud transcription
+try:
+    from groq import Groq
+except ImportError:
+    Groq = None
+
+# Initialize Groq client if available
 api_key = os.getenv("GROQ_API_KEY")
 if api_key == "your_groq_api_key_here":
     api_key = None
 
-client = Groq(api_key=api_key) if api_key else None
+client = Groq(api_key=api_key) if api_key and Groq else None
 
 # Page config
 st.set_page_config(
@@ -50,10 +55,17 @@ with st.sidebar:
         api_key_input = st.text_input("Enter your Groq API Key:", type="password")
         if api_key_input:
             api_key = api_key_input
-            client = Groq(api_key=api_key)
-            st.success("API Key loaded!")
+            if Groq:
+                client = Groq(api_key=api_key)
+                st.success("API Key loaded!")
+            else:
+                st.error("Groq SDK is not installed. Install it with `pip install groq`.")
     else:
-        st.success("API Key loaded from environment")
+        if Groq:
+            client = Groq(api_key=api_key)
+            st.success("API Key loaded from environment")
+        else:
+            st.error("Groq SDK is not installed. Install it with `pip install groq`.")
 
     st.markdown("---")
     st.markdown("### Model Selection")

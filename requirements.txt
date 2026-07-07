@@ -1,3 +1,11 @@
 streamlit
 groq
 python-dotenv
+pyaudio
+numpy
+librosa
+soundfile
+scipy
+scikit-learn
+openai-whisper
+noisereduce

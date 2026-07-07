@@ -2,10 +2,13 @@ import os
 import argparse
 import torch
 import whisper
-from static_ffmpeg import add_paths
-
-# Ensure ffmpeg binaries are in the system path for Whisper to find
-add_paths()
+try:
+    from static_ffmpeg import add_paths
+    # Ensure ffmpeg binaries are in the system path for Whisper to find
+    add_paths()
+except ImportError:
+    # Fallback to system-installed ffmpeg
+    pass
 
 def transcribe_audio(input_file=None, model_size="medium", input_folder="audio file", output_folder="audio file text", single_file=True):
     """
@@ -28,7 +31,7 @@ def transcribe_audio(input_file=None, model_size="medium", input_folder="audio f
         print(f"Created output directory: {output_folder}")
     
     # Supported audio extensions
-    extensions = (".wav", ".mp3", ".m4a", ".flac")
+    extensions = (".wav", ".mp3", ".m4a", ".flac", ".ogg")
     
     # Determine target files from arguments or folder
     if input_file:
