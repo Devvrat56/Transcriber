@@ -7,6 +7,7 @@ including speaker dialogue alignment, error correction, and clinical NER.
 import streamlit as st
 import os
 import json
+import requests
 from pathlib import Path
 from dotenv import load_dotenv
 from audio_pipeline import AudioUploadHandler, AudioWorker, AudioUtils, AudioProcessingPipeline
@@ -112,6 +113,9 @@ def run_stages_processing(input_file_path, enabled_stages):
     output_dir = Path('./uploads/processed')
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"processed_{input_path.name}"
+    report_dir = Path("./reports")
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / f"{input_path.stem}_report.json"
     
     # Execute audio pipeline
     pipeline = AudioProcessingPipeline(config={
@@ -170,6 +174,9 @@ def run_stages_processing(input_file_path, enabled_stages):
     
     report["nlp_report"] = nlp_report
     report["transcription"] = transcription
+    report["report_path"] = str(report_path)
+    with open(report_path, "w", encoding="utf-8") as report_file:
+        json.dump(report, report_file, indent=2, ensure_ascii=False)
     return report
 
 def main():
@@ -378,5 +385,37 @@ def main():
                 else:
                     st.write("No medical entities extracted.")
 
-if __name__ == "__main__":
-    main()
+            st.divider()
+            st.subheader("👨‍⚕️ Human-in-the-Loop Review")
+            hitl_backend = st.text_input("HITL Backend URL", value="http://localhost:8000", key="hitl_backend_url")
+            report_file = report.get("report_path")
+            if not report_file:
+                st.warning("Report JSON is not available yet. Process audio to enable HITL review.")
+            else:
+                if st.button("Load HITL Report for Review"):
+                    st.session_state.hitl_report_path = report_file
+                    st.session_state.hitl_backend_url = hitl_backend.rstrip("/")
+
+                if st.session_state.get("hitl_report_path"):
+                    review_url = f"{st.session_state.get('hitl_backend_url', hitl_backend).rstrip('/')}/reports/{Path(st.session_state.hitl_report_path).name}"
+                    try:
+                        response = requests.get(review_url, timeout=10)
+                        if response.status_code == 200:
+                            remote_report = response.json()
+                            edited_text = st.text_area(
+                                "Corrected Transcript",
+                                remote_report.get("nlp_report", {}).get("corrected_transcript", ""),
+                                height=250,
+                                key="hitl_corrected_transcript"
+                            )
+                            if st.button("Save HITL Changes"):
+                                remote_report.setdefault("nlp_report", {})["corrected_transcript"] = edited_text
+                                save_response = requests.post(review_url, json=remote_report, timeout=10)
+                                if save_response.ok:
+                                    st.success("HITL report saved successfully.")
+                                else:
+                                    st.error(f"Failed to save HITL report: {save_response.text}")
+                        else:
+                            st.error(f"Unable to load HITL report: {response.text}")
+                    except Exception as exc:
+                        st.error(f"HITL backend request failed: {exc}")

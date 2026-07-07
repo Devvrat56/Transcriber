@@ -138,6 +138,23 @@ Opens at `http://localhost:8501`
 - Speaker-aligned dialogue display
 - Medical entity extraction visualization
 - Download processed audio and reports
+- Human-in-the-loop report review and editing via backend server
+
+### Human-in-the-Loop (HITL) Review
+
+The Streamlit app can connect to a HITL backend server to load saved JSON reports and allow a clinician to correct the generated summary.
+
+1. Start the HITL backend server:
+```bash
+.venv/bin/python main.py --hitl-server --hitl-port 8000
+```
+
+2. Process audio in Streamlit and then enter the backend URL in the HITL section:
+```
+http://localhost:8000
+```
+
+3. Click `Load HITL Report for Review`, edit the corrected transcript as needed, then click `Save HITL Changes`.
 
 ### Python API Usage
 
