@@ -4,7 +4,7 @@ from groq import Groq
 
 def load_env_key():
     # Load from the known .env file location in Chatbot_med_final
-    env_path = Path("../../Chatbot_Medical/Chatbot_med_final/.env")
+    env_path = Path("Chatbot_Medical/Chatbot_med_final/.env")
     if env_path.exists():
         with open(env_path, 'r') as f:
             for line in f:

@@ -256,13 +256,14 @@ def main():
             logging.error("Audio processing failed: %s", audio_report.get("error"))
         else:
             if not args.skip_nlp:
+                api_key = args.groq_api_key or os.getenv("GROQ_API_KEY")
                 logging.info("Running transcription on processed audio")
-                transcript, segments = transcribe_audio(processed_audio_path, api_key=args.groq_api_key, language=args.language)
+                transcript, segments = transcribe_audio(processed_audio_path, api_key=api_key, language=args.language)
                 result["transcription"] = transcript
                 result["whisper_segments"] = segments
 
                 logging.info("Running NLP pipeline")
-                nlp_pipeline = MedicalNLPPipeline(config={"groq_api_key": args.groq_api_key or ""})
+                nlp_pipeline = MedicalNLPPipeline(config={"groq_api_key": api_key or ""})
                 nlp_report = nlp_pipeline.process_transcript(
                     raw_text=transcript,
                     whisper_segments=segments,

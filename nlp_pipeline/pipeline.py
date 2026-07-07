@@ -182,12 +182,15 @@ class MedicalNLPPipeline:
             '    "doctor_name": "<doctor name or empty>"\n'
             "  },\n"
             '  "medical_details": {\n'
+            '    "chief_complaint": "<chief complaint or empty>",\n'
             '    "symptoms": ["<symptom 1>", ...],\n'
             '    "diagnosis": ["<diagnosis 1>", ...],\n'
+            '    "past_medical_history": ["<past medical history item 1>", ...],\n'
             '    "tests": ["<test/investigation 1>", ...],\n'
             '    "vitals": ["<vital sign 1>", ...],\n'
             '    "procedures": ["<procedure 1>", ...],\n'
-            '    "doctor_advice": ["<doctor advice/instructions 1>", ...]\n'
+            '    "doctor_advice": ["<doctor advice/instructions 1>", ...],\n'
+            '    "follow_up": "<follow up instructions or empty>"\n'
             "  },\n"
             '  "medicines": [\n'
             "    {\n"
@@ -195,7 +198,8 @@ class MedicalNLPPipeline:
             '      "dosage": "<dosage or empty>",\n'
             '      "route": "<route/formulation or empty>",\n'
             '      "frequency": "<frequency or empty>",\n'
-            '      "duration": "<duration or empty>"\n'
+            '      "duration": "<duration or empty>",\n'
+            '      "instruction": "<special instruction or empty>"\n'
             "    }\n"
             "  ]\n"
             "}"
@@ -318,7 +322,7 @@ class MedicalNLPPipeline:
             
         # Vitals/Details mapping
         medical_details = {
-            "symptoms": [], "diagnosis": [], "tests": [], "vitals": [], "procedures": [], "doctor_advice": []
+            "chief_complaint": "", "symptoms": [], "diagnosis": [], "past_medical_history": [], "tests": [], "vitals": [], "procedures": [], "doctor_advice": [], "follow_up": ""
         }
         
         # Fill categories using keyword lists
@@ -351,7 +355,7 @@ class MedicalNLPPipeline:
             if re.search(r'\b' + re.escape(kw) + r'\b', corrected, re.IGNORECASE):
                 # Simple medicine object
                 med_obj = {
-                    "name": kw, "dosage": "", "route": "", "frequency": "", "duration": ""
+                    "name": kw, "dosage": "", "route": "", "frequency": "", "duration": "", "instruction": ""
                 }
                 
                 # Check for nearby dosages/routes/frequencies in window of 40 characters
@@ -393,7 +397,7 @@ class MedicalNLPPipeline:
                 "name": "", "age": "", "gender": "", "phone": "", "patient_id": "", "doctor_name": ""
             },
             "medical_details": {
-                "symptoms": [], "diagnosis": [], "tests": [], "vitals": [], "procedures": [], "doctor_advice": []
+                "chief_complaint": "", "symptoms": [], "diagnosis": [], "past_medical_history": [], "tests": [], "vitals": [], "procedures": [], "doctor_advice": [], "follow_up": ""
             },
             "medicines": [],
             "dialogue": [],

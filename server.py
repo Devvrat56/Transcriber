@@ -60,13 +60,34 @@ def save_history_record(item):
     except Exception as e:
         logger.error(f"Failed to save history record: {e}")
 
+def clean_pdf_text(text: str) -> str:
+    if not text:
+        return ""
+    replacements = {
+        "\u2019": "'",  # curly apostrophe
+        "\u2018": "'",
+        "\u201c": '"',  # curly quotes
+        "\u201d": '"',
+        "\u2014": "-",  # em dash
+        "\u2013": "-",  # en dash
+        "\u2192": "->", # arrow
+        "\u2022": "*",  # bullet point
+        "\u00b0": " degrees ", # degree symbol
+        "\u03bc": "u",   # micro symbol (mu)
+    }
+    for k, v in replacements.items():
+        text = text.replace(k, v)
+    return text.encode("latin-1", "replace").decode("latin-1")
+
 # Request/Response Schemas
 class AnalyzeRequest(BaseModel):
     transcript: str
+    whisper_segments: Optional[List[dict]] = None
+    diarization_segments: Optional[List[dict]] = None
 
 class EntityItem(BaseModel):
     text: str
-    label: str
+    label: Optional[str] = None
 
 class GeneratePDFRequest(BaseModel):
     transcript: str
@@ -74,8 +95,8 @@ class GeneratePDFRequest(BaseModel):
     summary_text: str
 
 @app.post("/api/v1/scribe/transcribe")
-async def transcribe_endpoint(file: UploadFile = File(...)):
-    logger.info(f"Received transcription request for file: {file.filename}")
+async def transcribe_endpoint(file: UploadFile = File(...), language: Optional[str] = None):
+    logger.info(f"Received transcription request for file: {file.filename}, language: {language}")
     
     # Setup temporary directories
     upload_dir = Path("./processed/uploads")
@@ -94,11 +115,12 @@ async def transcribe_endpoint(file: UploadFile = File(...)):
             
         transcribe_path = input_path
         
+        audio_report = {}
         # Attempt to run audio pipeline
         try:
             logger.info("Running 8-stage clinical audio processing pipeline...")
             pipeline = AudioProcessingPipeline()
-            pipeline.process_file(str(input_path), str(output_path))
+            audio_report = pipeline.process_file(str(input_path), str(output_path))
             if output_path.exists():
                 transcribe_path = output_path
                 logger.info("Audio processing completed successfully.")
@@ -111,16 +133,20 @@ async def transcribe_endpoint(file: UploadFile = File(...)):
         api_key = os.getenv("GROQ_API_KEY")
         logger.info("Starting transcription...")
         try:
-            transcript, segments = transcribe_audio(transcribe_path, api_key=api_key)
+            transcript, segments = transcribe_audio(transcribe_path, api_key=api_key, language=language)
         except Exception as e:
             logger.warning(f"Transcription failed with default key. Retrying with fallback key. Error: {e}")
             fallback_key = os.getenv("FALLBACK_GROQ_API_KEY")
             if not fallback_key:
                 raise ValueError("No fallback API key configured in FALLBACK_GROQ_API_KEY env variable.") from e
-            transcript, segments = transcribe_audio(transcribe_path, api_key=fallback_key)
+            transcript, segments = transcribe_audio(transcribe_path, api_key=fallback_key, language=language)
         logger.info("Transcription completed.")
         
-        return {"transcript": transcript}
+        return {
+            "transcript": transcript,
+            "whisper_segments": segments,
+            "diarization_segments": audio_report.get("diarization_segments", [])
+        }
         
     except Exception as e:
         logger.error(f"Error during transcription endpoint execution: {e}")
@@ -145,7 +171,11 @@ async def analyze_endpoint(req: AnalyzeRequest):
         # Initialize NLP pipeline
         nlp_pipeline = MedicalNLPPipeline(config={"groq_api_key": api_key})
         try:
-            nlp_report = nlp_pipeline.process_transcript(req.transcript)
+            nlp_report = nlp_pipeline.process_transcript(
+                req.transcript,
+                whisper_segments=req.whisper_segments,
+                diarization_segments=req.diarization_segments
+            )
             if not nlp_report or not nlp_report.get("corrected_transcript") or "warning" in nlp_report or "invalid_api_key" in str(nlp_report):
                 raise ValueError("NLP pipeline returned fallback or invalid key warning")
         except Exception as e:
@@ -154,7 +184,11 @@ async def analyze_endpoint(req: AnalyzeRequest):
             if not fallback_key:
                 raise ValueError("No fallback API key configured in FALLBACK_GROQ_API_KEY env variable.") from e
             nlp_pipeline = MedicalNLPPipeline(config={"groq_api_key": fallback_key})
-            nlp_report = nlp_pipeline.process_transcript(req.transcript)
+            nlp_report = nlp_pipeline.process_transcript(
+                req.transcript,
+                whisper_segments=req.whisper_segments,
+                diarization_segments=req.diarization_segments
+            )
         
         # Extract fields
         corrected_transcript = nlp_report.get("corrected_transcript", req.transcript) or req.transcript
@@ -229,7 +263,7 @@ async def generate_pdf_endpoint(req: GeneratePDFRequest):
         
         pdf.set_font("Helvetica", "", 10)
         for line in req.summary_text.split("\n"):
-            pdf.multi_cell(pdf.epw, 6, line)
+            pdf.multi_cell(pdf.epw, 6, clean_pdf_text(line))
         pdf.ln(10)
         
         # 3. Medical Entities Section
@@ -242,9 +276,13 @@ async def generate_pdf_endpoint(req: GeneratePDFRequest):
         pdf.set_font("Helvetica", "", 10)
         if req.entities:
             for ent in req.entities:
-                text = ent.text
-                label = ent.label.replace("_", " ").upper()
-                pdf.multi_cell(pdf.epw, 6, f"- {text} [{label}]")
+                text = clean_pdf_text(ent.text)
+                raw_label = ent.label or ""
+                label = clean_pdf_text(raw_label.replace("_", " ").upper())
+                if label:
+                    pdf.multi_cell(pdf.epw, 6, f"- {text} [{label}]")
+                else:
+                    pdf.multi_cell(pdf.epw, 6, f"- {text}")
         else:
             pdf.cell(pdf.epw, 10, "No medical entities identified.")
             pdf.ln(6)
@@ -259,7 +297,7 @@ async def generate_pdf_endpoint(req: GeneratePDFRequest):
         
         pdf.set_font("Helvetica", "I", 9)
         for line in req.transcript.split("\n"):
-            pdf.multi_cell(pdf.epw, 5, line)
+            pdf.multi_cell(pdf.epw, 5, clean_pdf_text(line))
             
         # Output bytearray
         pdf_data = bytes(pdf.output())
