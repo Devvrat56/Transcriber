@@ -5,3 +5,9 @@ audio file/
 audio file text/
 *.pyc
 .agent/
+processed/
+reports/
+*.wav
+*.ogg
+*.pdf
+install_tail.txt
