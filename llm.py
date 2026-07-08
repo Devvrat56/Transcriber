@@ -28,7 +28,7 @@ class MedicalLLM:
     Client for Groq LLM medical tasks using the prompts defined in prompt.py.
     """
     
-    def __init__(self, api_key=None, model="llama-3.1-8b-instant"):
+    def __init__(self, api_key=None, model="llama-3.3-70b-versatile"):
         """
         Initialize the MedicalLLM client.
         
