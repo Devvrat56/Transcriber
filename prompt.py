@@ -81,7 +81,8 @@ Rules:
 DOCTOR_SUMMARY_PROMPT = """
 You are a clinical documentation assistant.
 
-Create a concise doctor-facing medical summary from the transcript and extracted medical details.
+Create a comprehensive medical summary from the transcript and extracted medical details. 
+You MUST include a detailed medical description of all medicines prescribed so that it can help the patient understand their medications, why they are taking them, and how to take them safely.
 
 The summary should include:
 
@@ -92,13 +93,14 @@ The summary should include:
 5. Examination / Vitals
 6. Investigations
 7. Diagnosis / Clinical Impression
-8. Treatment Given / Medicines
-9. Doctor Advice
-10. Follow-up Plan
+8. Treatment Given / Medicines (Include professional details)
+9. Patient Medication Guide (Detailed, patient-friendly explanation of each medicine, its purpose, and instructions so the patient understands)
+10. Doctor Advice
+11. Follow-up Plan
 
 Rules:
-- Use professional clinical language.
-- Keep the summary concise and medically accurate.
+- Use professional clinical language for sections 1-8 and 10-11.
+- Use clear, patient-friendly language for section 9 (Patient Medication Guide).
 - Do not add facts that are not present.
 - Preserve medicine names, dosage, frequency, route, and duration.
 - Mention missing information as "Not mentioned".
