@@ -70,9 +70,8 @@ def transcribe_audio(input_file=None, model_size="medium", input_folder="audio f
             print(f"Detected language: {result.get('language', 'unknown')}")
             
             with open(output_path, "w", encoding="utf-8") as f:
-                for segment in result['segments']:
-                    # Write segments with timestamps
-                    f.write(f"[{segment['start']:.2f}s - {segment['end']:.2f}s] {segment['text'].strip()}\n")
+                # Write the full continuous text
+                f.write(result['text'].strip() + "\n")
             
             print(f"Completed: {input_path}. Saved to: {output_path}")
             
